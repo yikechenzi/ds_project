@@ -169,10 +169,10 @@ class MainWindow(QMainWindow):
 
                 self._log.info("浏览器引擎初始化完成")
                 # 用QTimer回到主线程更新UI
-                QTimer.singleShot(0, lambda: self._status.showMessage("就绪 - 浏览器已启动"))
+                QTimer.singleShot(0, self._on_browser_ready)
             except Exception as e:
                 self._log.error(f"浏览器启动失败: {e}")
-                QTimer.singleShot(0, lambda: self._status.showMessage(f"浏览器启动失败: {e}"))
+                QTimer.singleShot(0, lambda: self._on_browser_failed(str(e)))
             finally:
                 loop.close()
 
@@ -184,6 +184,19 @@ class MainWindow(QMainWindow):
         self._progress.set_current(index)
         page_names = {0: "采集", 1: "审核", 2: "上架"}
         self._status.showMessage(f"当前步骤: {page_names.get(index, '')}")
+
+    def _on_browser_ready(self):
+        """浏览器初始化成功，通知采集页启用按钮"""
+        self._status.showMessage("就绪 - 浏览器已启动")
+        self._global_log.append_log("INFO", "✅ 浏览器引擎已就绪")
+        self._url_page.set_engine_ready()
+
+    def _on_browser_failed(self, error_msg: str):
+        """浏览器初始化失败"""
+        self._status.showMessage(f"浏览器启动失败: {error_msg}")
+        self._global_log.append_log("ERROR", f"❌ 浏览器启动失败: {error_msg}")
+        self._url_page._status_label.setText(f"❌ 浏览器启动失败，请重启程序")
+        self._url_page._status_label.setStyleSheet("color: #dc3c32; font-size: 13px;")
 
     @Slot(object)
     def _on_scrape_done(self, product: Product):

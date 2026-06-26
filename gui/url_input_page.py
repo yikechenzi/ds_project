@@ -92,10 +92,17 @@ class UrlInputPage(QWidget):
             QPushButton:disabled { background-color: #ccc; }
         """)
         self._btn_scrape.clicked.connect(self._on_scrape)
+        self._btn_scrape.setEnabled(False)
+        self._btn_scrape.setText("浏览器启动中...")
+
+        self._status_label = QLabel("⏳ 浏览器引擎初始化中，请稍候...")
+        self._status_label.setStyleSheet("color: #e6a100; font-size: 13px;")
+        self._status_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
 
         input_layout.addWidget(self._url_input)
         input_layout.addWidget(self._btn_scrape)
         layout.addWidget(input_group)
+        layout.addWidget(self._status_label)
 
         # 分隔线
         sep = QFrame()
@@ -151,6 +158,13 @@ class UrlInputPage(QWidget):
         self._btn_scrape.setEnabled(True)
         self._btn_scrape.setText("开始采集")
         self._log_console.append_log("ERROR", f"❌ 采集出错: {error_msg}")
+
+    def set_engine_ready(self):
+        """浏览器引擎就绪后调用，启用采集按钮"""
+        self._btn_scrape.setEnabled(True)
+        self._btn_scrape.setText("开始采集")
+        self._status_label.setText("✅ 浏览器已就绪，可以开始采集")
+        self._status_label.setStyleSheet("color: #3cb44b; font-size: 13px;")
 
     def get_log_console(self) -> LogConsole:
         return self._log_console
