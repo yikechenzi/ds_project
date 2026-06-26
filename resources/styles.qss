@@ -1,0 +1,246 @@
+/* ==================== 全局样式 ==================== */
+
+QMainWindow {
+    background-color: #f8f9fa;
+}
+
+QMenuBar {
+    background-color: #ffffff;
+    border-bottom: 1px solid #e0e0e0;
+    padding: 2px 8px;
+    font-size: 13px;
+}
+
+QMenuBar::item {
+    padding: 6px 12px;
+    border-radius: 4px;
+}
+
+QMenuBar::item:selected {
+    background-color: #e8f0fe;
+    color: #1a73e8;
+}
+
+QMenu {
+    background-color: #ffffff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 4px;
+}
+
+QMenu::item {
+    padding: 8px 32px 8px 16px;
+    border-radius: 4px;
+}
+
+QMenu::item:selected {
+    background-color: #e8f0fe;
+    color: #1a73e8;
+}
+
+QStatusBar {
+    background-color: #ffffff;
+    border-top: 1px solid #e0e0e0;
+    font-size: 12px;
+    color: #666;
+    padding: 2px 12px;
+}
+
+/* ==================== 按钮 ==================== */
+
+QPushButton {
+    font-size: 13px;
+    padding: 8px 16px;
+    border-radius: 6px;
+}
+
+/* ==================== 输入框 ==================== */
+
+QLineEdit {
+    border: 2px solid #e0e0e0;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 13px;
+    background-color: #ffffff;
+    selection-background-color: #4285f4;
+}
+
+QLineEdit:focus {
+    border-color: #4285f4;
+}
+
+QLineEdit:hover {
+    border-color: #bbb;
+}
+
+/* ==================== 分组框 ==================== */
+
+QGroupBox {
+    font-size: 13px;
+    font-weight: bold;
+    color: #333;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    margin-top: 12px;
+    padding-top: 20px;
+    background-color: #ffffff;
+}
+
+QGroupBox::title {
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    left: 16px;
+    padding: 0 8px;
+    background-color: #ffffff;
+}
+
+/* ==================== 标签页 ==================== */
+
+QTabWidget::pane {
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    background-color: #ffffff;
+}
+
+QTabBar::tab {
+    padding: 8px 20px;
+    font-size: 13px;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: #666;
+}
+
+QTabBar::tab:selected {
+    color: #1a73e8;
+    border-bottom-color: #1a73e8;
+    font-weight: bold;
+}
+
+QTabBar::tab:hover {
+    color: #333;
+    background-color: #f5f5f5;
+}
+
+/* ==================== 表格 ==================== */
+
+QTableWidget {
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    gridline-color: #f0f0f0;
+    font-size: 12px;
+    background-color: #ffffff;
+}
+
+QTableWidget::item {
+    padding: 6px;
+}
+
+QTableWidget::item:selected {
+    background-color: #e8f0fe;
+    color: #1a73e8;
+}
+
+QHeaderView::section {
+    background-color: #f8f9fa;
+    border: none;
+    border-bottom: 2px solid #e0e0e0;
+    border-right: 1px solid #f0f0f0;
+    padding: 8px 6px;
+    font-size: 12px;
+    font-weight: bold;
+    color: #555;
+}
+
+/* ==================== 滚动条 ==================== */
+
+QScrollBar:vertical {
+    background: transparent;
+    width: 8px;
+    margin: 0;
+}
+
+QScrollBar::handle:vertical {
+    background: #ccc;
+    border-radius: 4px;
+    min-height: 30px;
+}
+
+QScrollBar::handle:vertical:hover {
+    background: #aaa;
+}
+
+QScrollBar::add-line:vertical,
+QScrollBar::sub-line:vertical {
+    height: 0;
+}
+
+QScrollBar:horizontal {
+    background: transparent;
+    height: 8px;
+    margin: 0;
+}
+
+QScrollBar::handle:horizontal {
+    background: #ccc;
+    border-radius: 4px;
+    min-width: 30px;
+}
+
+QScrollBar::handle:horizontal:hover {
+    background: #aaa;
+}
+
+QScrollBar::add-line:horizontal,
+QScrollBar::sub-line:horizontal {
+    width: 0;
+}
+
+/* ==================== 复选框 ==================== */
+
+QCheckBox {
+    font-size: 13px;
+    color: #333;
+    spacing: 8px;
+}
+
+QCheckBox::indicator {
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    border: 2px solid #ccc;
+    background-color: #ffffff;
+}
+
+QCheckBox::indicator:checked {
+    background-color: #4285f4;
+    border-color: #4285f4;
+}
+
+QCheckBox::indicator:hover {
+    border-color: #4285f4;
+}
+
+/* ==================== 数字输入框 ==================== */
+
+QSpinBox, QDoubleSpinBox {
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 12px;
+    background-color: #ffffff;
+}
+
+QSpinBox:focus, QDoubleSpinBox:focus {
+    border-color: #4285f4;
+}
+
+/* ==================== 提示框 ==================== */
+
+QToolTip {
+    background-color: #333;
+    color: #ffffff;
+    border: none;
+    border-radius: 4px;
+    padding: 6px 10px;
+    font-size: 12px;
+}

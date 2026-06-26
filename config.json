@@ -1,0 +1,40 @@
+{
+  "browser": {
+    "user_data_dir": "data/browser_profile",
+    "headless": false,
+    "slow_mo": 100,
+    "viewport_width": 1366,
+    "viewport_height": 768,
+    "locale": "zh-CN",
+    "timezone": "Asia/Shanghai"
+  },
+  "scraping": {
+    "page_load_timeout": 30000,
+    "api_wait_timeout": 15000,
+    "scroll_delay_min": 0.5,
+    "scroll_delay_max": 1.5,
+    "action_delay_min": 0.8,
+    "action_delay_max": 3.0
+  },
+  "upload": {
+    "auto_submit": false,
+    "submit_confirm": true,
+    "field_fill_delay_min": 0.3,
+    "field_fill_delay_max": 1.0,
+    "upload_image_delay": 2.0,
+    "max_title_length": 60
+  },
+  "images": {
+    "min_width": 800,
+    "min_height": 800,
+    "max_main_images": 5,
+    "jpeg_quality": 90,
+    "download_timeout": 15000
+  },
+  "paths": {
+    "cookies_file": "data/cookies/session.json",
+    "cache_dir": "data/cache",
+    "images_dir": "data/images",
+    "log_dir": "logs"
+  }
+}
