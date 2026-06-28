@@ -3,12 +3,13 @@
 组装所有页面，管理页面切换和核心流程
 """
 import asyncio
+import threading
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QStackedWidget, QMenuBar, QStatusBar, QToolBar,
     QLabel, QApplication, QMessageBox,
 )
-from PySide6.QtCore import Qt, Slot, QTimer
+from PySide6.QtCore import Qt, Slot, QTimer, Signal
 from PySide6.QtGui import QAction, QIcon
 
 from gui.url_input_page import UrlInputPage
@@ -32,10 +33,18 @@ from utils.logger import get_logger
 class MainWindow(QMainWindow):
     """应用主窗口"""
 
+    # 信号：用于从后台线程通知主线程
+    _browser_ready_signal = Signal()
+    _browser_failed_signal = Signal(str)
+
     def __init__(self):
         super().__init__()
         self._config = ConfigManager()
         self._log = get_logger()
+
+        # 持久事件循环（所有 Playwright 异步操作共用）
+        self._async_loop = asyncio.new_event_loop()
+        self._async_thread: threading.Thread = None
 
         # 核心引擎
         self._browser = BrowserManager(self._config, self._log)
@@ -45,6 +54,10 @@ class MainWindow(QMainWindow):
 
         # 数据
         self._current_product: Product = None
+
+        # 连接信号
+        self._browser_ready_signal.connect(self._on_browser_ready)
+        self._browser_failed_signal.connect(self._on_browser_failed)
 
         self._init_ui()
         self._init_engine()
@@ -73,10 +86,11 @@ class MainWindow(QMainWindow):
         self._url_page = UrlInputPage(
             scraper=None,
             image_manager=self._image_manager,
+            async_loop=self._async_loop,
             log=self._log,
         )
         self._review_page = ReviewPage()
-        self._upload_page = UploadPage(uploader=None)
+        self._upload_page = UploadPage(uploader=None, async_loop=self._async_loop)
 
         self._stack.addWidget(self._url_page)   # index 0
         self._stack.addWidget(self._review_page)  # index 1
@@ -133,6 +147,8 @@ class MainWindow(QMainWindow):
         # 采集页 → 审核页
         self._url_page.scrape_completed.connect(self._on_scrape_done)
         self._url_page.navigate_to_review.connect(lambda: self._switch_page(1))
+        # 按需启动浏览器
+        self._url_page.request_browser_init.connect(self._on_request_browser_init)
 
         # 审核页 → 上架页
         self._review_page.confirm_clicked.connect(self._on_review_confirm)
@@ -143,23 +159,29 @@ class MainWindow(QMainWindow):
         self._upload_page.back_clicked.connect(lambda: self._switch_page(1))
 
     def _init_engine(self):
-        """初始化核心引擎（异步）"""
+        """初始化核心引擎 - 启动持久事件循环线程，浏览器按需启动"""
+        # 启动持久事件循环线程
+        self._async_thread = threading.Thread(target=self._async_loop.run_forever, daemon=True)
+        self._async_thread.start()
+        self._log.info("持久事件循环已启动")
+        self._status.showMessage("就绪 - 浏览器将在采集时自动启动")
+
+    @Slot(str)
+    def _on_request_browser_init(self, url: str):
+        """收到采集页的浏览器启动请求"""
         self._log.info("正在初始化浏览器引擎...")
         self._status.showMessage("正在启动浏览器...")
+        self._do_init_browser()
 
-        # 使用QTimer延迟初始化，让窗口先显示出来
-        QTimer.singleShot(500, self._do_init_browser)
+    def _run_async(self, coro):
+        """在线程安全的方式在持久事件循环上执行协程，返回 Future"""
+        return asyncio.run_coroutine_threadsafe(coro, self._async_loop)
 
     def _do_init_browser(self):
-        """在后台初始化浏览器"""
-        import threading
-
-        def _init():
-            import asyncio
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
+        """在持久事件循环上初始化浏览器"""
+        async def _init():
             try:
-                page = loop.run_until_complete(self._browser.start(headless=False))
+                await self._browser.start(headless=False)
                 self._scraper = ProductScraper(self._browser, self._config, self._log)
                 self._uploader = ProductUploader(self._browser, self._config, self._log)
 
@@ -168,15 +190,12 @@ class MainWindow(QMainWindow):
                 self._upload_page._uploader = self._uploader
 
                 self._log.info("浏览器引擎初始化完成")
-                # 用QTimer回到主线程更新UI
-                QTimer.singleShot(0, self._on_browser_ready)
+                self._browser_ready_signal.emit()
             except Exception as e:
                 self._log.error(f"浏览器启动失败: {e}")
-                QTimer.singleShot(0, lambda: self._on_browser_failed(str(e)))
-            finally:
-                loop.close()
+                self._browser_failed_signal.emit(str(e))
 
-        threading.Thread(target=_init, daemon=True).start()
+        self._run_async(_init())
 
     def _switch_page(self, index: int):
         """切换页面"""
@@ -243,18 +262,15 @@ class MainWindow(QMainWindow):
 
     def _do_login_check(self, dlg: LoginDialog):
         """执行登录检测"""
-        import threading
         def _check():
-            import asyncio
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
             try:
-                logged_in = loop.run_until_complete(self._browser.is_logged_in())
-                QTimer.singleShot(0, lambda: dlg.set_login_result(logged_in))
+                future = asyncio.run_coroutine_threadsafe(
+                    self._browser.is_logged_in(), self._async_loop
+                )
+                logged_in = future.result(timeout=10)
             except Exception:
-                QTimer.singleShot(0, lambda: dlg.set_login_result(False))
-            finally:
-                loop.close()
+                logged_in = False
+            QTimer.singleShot(0, lambda: dlg.set_login_result(logged_in))
         threading.Thread(target=_check, daemon=True).start()
 
     def _show_about(self):
@@ -270,17 +286,17 @@ class MainWindow(QMainWindow):
     def closeEvent(self, event):
         """窗口关闭事件"""
         self._log.info("正在关闭应用...")
-        # 后台关闭浏览器
-        import threading
-        def _close():
-            import asyncio
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
+        # 在持久循环上关闭浏览器
+        async def _close():
             try:
-                loop.run_until_complete(self._browser.close())
+                await self._browser.close()
             except Exception:
                 pass
-            finally:
-                loop.close()
-        threading.Thread(target=_close, daemon=True).start()
+        if self._async_loop and self._async_loop.is_running():
+            future = asyncio.run_coroutine_threadsafe(_close(), self._async_loop)
+            try:
+                future.result(timeout=5)
+            except Exception:
+                pass
+            self._async_loop.call_soon_threadsafe(self._async_loop.stop)
         event.accept()

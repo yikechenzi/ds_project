@@ -40,15 +40,28 @@ class ProductUploader:
                 return False
 
         try:
-            # 导航到卖家发布页
-            self._log.info("正在打开卖家发布页...")
-            await self._browser.navigate("https://sell.taobao.com/auction/goods/goods_form.htm")
+            # 导航到卖家发布页（新版千牛发布入口）
+            publish_url = self._config.get("upload", "publish_url", "https://seller.taobao.com/")
+            self._log.info(f"正在打开卖家发布页: {publish_url}")
+            await self._browser.navigate(publish_url)
             await human_delay(2.0, 4.0)
 
             # 检测登录状态
             if await self._browser.is_login_page():
                 self._log.error("需要登录千牛卖家账号")
                 return False
+
+            # 检测是否在通知页（旧页面升级提示），点击"发布宝贝"
+            current_url = page.url
+            self._log.info(f"当前页面: {current_url}")
+            if "notice" in current_url or "upgrade" in current_url:
+                self._log.info("检测到升级提示页，尝试点击发布宝贝...")
+                publish_link = page.locator('a:has-text("发布宝贝")').first
+                if await publish_link.is_visible(timeout=3000):
+                    await publish_link.click()
+                    await human_delay(3.0, 5.0)
+                    current_url = page.url
+                    self._log.info(f"发布页URL: {current_url}")
 
             # 填写标题
             await self._fill_title(page, product.title)

@@ -46,6 +46,15 @@ class ProductScraper:
         self._log.info(f"正在访问: {url}")
         await self._browser.navigate(url)
 
+        # 检测是否被重定向到登录页
+        current_url = page.url
+        self._log.info(f"当前页面: {current_url}")
+        if await self._browser.is_login_page():
+            self._log.warning("检测到登录页面，需要先登录淘宝账号")
+            product.status = "failed"
+            product.error_message = "需要登录淘宝账号，请通过菜单「工具 → 登录检测」完成登录后再试"
+            return product
+
         # 等待页面加载
         timeout = self._config.get("scraping", "api_wait_timeout", 15000) / 1000
         api_data = await self._interceptor.wait_for_detail(timeout=timeout)
@@ -63,6 +72,16 @@ class ProductScraper:
             self._log.info("使用DOM解析商品信息...")
             await self._scrape_from_dom(page, product)
 
+        # 页面title兜底：从<title>标签提取商品标题
+        if not product.title:
+            page_title = await page.title()
+            if page_title:
+                # 淘宝页面title格式: "商品标题-tmall.com天猫" 或 "商品标题-淘宝网"
+                title = page_title.split("-")[0].strip()
+                if title and len(title) > 2:
+                    product.title = title
+                    self._log.info(f"从页面标题提取到商品名: {product.title}")
+
         # 模拟滚动加载图片
         await simulate_scroll(page, 500)
         await human_delay(0.5, 1.5)
@@ -79,6 +98,8 @@ class ProductScraper:
             product.status = "failed"
             product.error_message = "未能获取商品标题"
             self._log.error("采集失败: 未获取到商品标题")
+            self._log.info(f"页面URL: {page.url}")
+            self._log.info(f"页面标题: {await page.title()}")
 
         return product
 

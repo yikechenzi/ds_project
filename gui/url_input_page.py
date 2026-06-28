@@ -18,24 +18,26 @@ class _ScrapeWorker(QThread):
     finished = Signal(object)  # Product or None
     error = Signal(str)
 
-    def __init__(self, scraper, image_manager, url, parent=None):
+    def __init__(self, scraper, image_manager, url, async_loop, parent=None):
         super().__init__(parent)
         self._scraper = scraper
         self._image_manager = image_manager
         self._url = url
+        self._async_loop = async_loop
 
     def run(self):
         try:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            product = loop.run_until_complete(self._scraper.scrape(self._url))
-            # 下载图片
-            if product.original_images:
-                local = loop.run_until_complete(
-                    self._image_manager.download_images(product.original_images, product.item_id)
-                )
-                product.local_images = local
-            loop.close()
+            async def _scrape():
+                product = await self._scraper.scrape(self._url)
+                if product.original_images:
+                    local = await self._image_manager.download_images(
+                        product.original_images, product.item_id
+                    )
+                    product.local_images = local
+                return product
+
+            future = asyncio.run_coroutine_threadsafe(_scrape(), self._async_loop)
+            product = future.result(timeout=120)
             self.finished.emit(product)
         except Exception as e:
             self.error.emit(str(e))
@@ -47,13 +49,17 @@ class UrlInputPage(QWidget):
     # 采集完成信号，携带Product对象
     scrape_completed = Signal(object)
     navigate_to_review = Signal()
+    # 请求初始化浏览器（按需启动）
+    request_browser_init = Signal(str)
 
-    def __init__(self, scraper, image_manager, log=None, parent=None):
+    def __init__(self, scraper, image_manager, async_loop=None, log=None, parent=None):
         super().__init__(parent)
         self._scraper = scraper
         self._image_manager = image_manager
+        self._async_loop = async_loop
         self._log = log
         self._worker = None
+        self._pending_url = None
         self._setup_ui()
 
     def _setup_ui(self):
@@ -92,11 +98,9 @@ class UrlInputPage(QWidget):
             QPushButton:disabled { background-color: #ccc; }
         """)
         self._btn_scrape.clicked.connect(self._on_scrape)
-        self._btn_scrape.setEnabled(False)
-        self._btn_scrape.setText("浏览器启动中...")
 
-        self._status_label = QLabel("⏳ 浏览器引擎初始化中，请稍候...")
-        self._status_label.setStyleSheet("color: #e6a100; font-size: 13px;")
+        self._status_label = QLabel("💡 输入链接后点击开始采集，浏览器将自动启动")
+        self._status_label.setStyleSheet("color: #666; font-size: 13px;")
         self._status_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
 
         input_layout.addWidget(self._url_input)
@@ -126,17 +130,17 @@ class UrlInputPage(QWidget):
             self._log_console.append_log("WARNING", "请输入有效的淘宝/天猫链接")
             return
         if not self._scraper:
-            self._log_console.append_log("WARNING", "浏览器引擎尚未就绪，请稍候再试...")
+            # 浏览器未就绪，先启动浏览器，采集会在就绪后自动执行
+            self._pending_url = url
+            self._btn_scrape.setEnabled(False)
+            self._btn_scrape.setText("正在启动浏览器...")
+            self._status_label.setText("⏳ 正在启动浏览器，请稍候...")
+            self._status_label.setStyleSheet("color: #e6a100; font-size: 13px;")
+            self._log_console.append_log("INFO", "正在启动浏览器引擎...")
+            self.request_browser_init.emit(url)
             return
 
-        self._btn_scrape.setEnabled(False)
-        self._btn_scrape.setText("采集中...")
-        self._log_console.append_log("INFO", f"开始采集: {url[:60]}...")
-
-        self._worker = _ScrapeWorker(self._scraper, self._image_manager, url, self)
-        self._worker.finished.connect(self._on_finished)
-        self._worker.error.connect(self._on_error)
-        self._worker.start()
+        self._start_scrape(url)
 
     @Slot(object)
     def _on_finished(self, product):
@@ -165,6 +169,23 @@ class UrlInputPage(QWidget):
         self._btn_scrape.setText("开始采集")
         self._status_label.setText("✅ 浏览器已就绪，可以开始采集")
         self._status_label.setStyleSheet("color: #3cb44b; font-size: 13px;")
+        # 如果有待执行的采集任务，自动开始
+        if self._pending_url:
+            url = self._pending_url
+            self._pending_url = None
+            self._url_input.setText(url)
+            self._start_scrape(url)
+
+    def _start_scrape(self, url: str):
+        """执行采集"""
+        self._btn_scrape.setEnabled(False)
+        self._btn_scrape.setText("采集中...")
+        self._log_console.append_log("INFO", f"开始采集: {url[:60]}...")
+
+        self._worker = _ScrapeWorker(self._scraper, self._image_manager, url, self._async_loop, self)
+        self._worker.finished.connect(self._on_finished)
+        self._worker.error.connect(self._on_error)
+        self._worker.start()
 
     def get_log_console(self) -> LogConsole:
         return self._log_console

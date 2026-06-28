@@ -17,6 +17,7 @@
     "action_delay_max": 3.0
   },
   "upload": {
+    "publish_url": "https://seller.taobao.com/",
     "auto_submit": false,
     "submit_confirm": true,
     "field_fill_delay_min": 0.3,

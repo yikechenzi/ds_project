@@ -19,17 +19,18 @@ class _UploadWorker(QThread):
     finished = Signal(bool)
     error = Signal(str)
 
-    def __init__(self, uploader, product, parent=None):
+    def __init__(self, uploader, product, async_loop, parent=None):
         super().__init__(parent)
         self._uploader = uploader
         self._product = product
+        self._async_loop = async_loop
 
     def run(self):
         try:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            result = loop.run_until_complete(self._uploader.upload(self._product))
-            loop.close()
+            future = asyncio.run_coroutine_threadsafe(
+                self._uploader.upload(self._product), self._async_loop
+            )
+            result = future.result(timeout=300)
             self.finished.emit(result)
         except Exception as e:
             self.error.emit(str(e))
@@ -41,9 +42,10 @@ class UploadPage(QWidget):
     upload_finished = Signal(bool)
     back_clicked = Signal()
 
-    def __init__(self, uploader, parent=None):
+    def __init__(self, uploader, async_loop=None, parent=None):
         super().__init__(parent)
         self._uploader = uploader
+        self._async_loop = async_loop
         self._product = None
         self._worker = None
         self._setup_ui()
@@ -146,7 +148,7 @@ class UploadPage(QWidget):
         self._btn_upload.setText("上架中...")
         self._log_console.append_log("INFO", "开始上架流程...")
 
-        self._worker = _UploadWorker(self._uploader, self._product, self)
+        self._worker = _UploadWorker(self._uploader, self._product, self._async_loop, self)
         self._worker.finished.connect(self._on_finished)
         self._worker.error.connect(self._on_error)
         self._worker.start()

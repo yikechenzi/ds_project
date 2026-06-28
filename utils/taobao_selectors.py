@@ -14,8 +14,10 @@ DESC_API_PATTERN = "mtop.taobao.detail.getdesc"
 TITLE_SELECTORS = [
     '[class*="mainTitle"]',
     '[class*="ItemHeader--mainTitle"]',
+    '[class*="ItemHeader"] [class*="title"]',
     'h1[class*="title"]',
     '.tb-main-title',
+    '[data-testid*="title"]',
     'h1',
 ]
 
@@ -23,9 +25,12 @@ TITLE_SELECTORS = [
 PRICE_SELECTORS = [
     '[class*="Price--priceText"]',
     '[class*="priceText"]',
+    '[class*="Price"] [class*="text"]',
     '.tb-rmb-num',
     '[class*="price"] span[class*="text"]',
     'span[class*="Price"]',
+    '[class*="price--current"]',
+    '[class*="PriceBox"] span',
 ]
 
 # 主图
@@ -34,6 +39,9 @@ MAIN_IMAGE_SELECTORS = [
     '[class*="thumbnail"] img',
     '#J_UlThumb img',
     '[class*="slider"] img',
+    '[class*="PicGallery"] img',
+    '[class*="main-pic"] img',
+    '[class*="gallery"] img',
 ]
 
 # SKU面板
@@ -56,9 +64,11 @@ ATTRIBUTE_SELECTORS = [
 SHOP_NAME_SELECTORS = [
     '[class*="ShopHeader--title"]',
     '[class*="shopTitle"]',
+    '[class*="ShopHeader"] [class*="name"]',
     '.tb-shop-name a',
     '[class*="shop-name"]',
     '[class*="shopTitle"] a',
+    '[class*="store"] [class*="name"]',
 ]
 
 # 描述
